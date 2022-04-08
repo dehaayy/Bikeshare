@@ -71,7 +71,7 @@ df$weather_description <- unlist(cv)
 zxc<- zxc[-86520,]
 df <- df[-86520,]
 
-final_weath <- data.frame(date = df$dt_iso, temp = df$temp,
+final_weath <- data.frame(date = as.character(df$dt_iso), temp = df$temp,
                           feels_like = df$feels_like, visblty = df$visibility,
                           humidity = df$humidity, windspd = df$wind_speed )
 View(final_weath)
@@ -82,4 +82,10 @@ View(data.frame(df$weather_description, zxc$weather_description))
 
 fwrite(final_weath,"/Users/dehaay/Desktop/weather_work_data/weatherdata2013-2017.csv", row.names = FALSE)
 
+
+
 #Author : Deha Ay
+
+#use to call the dataframe
+aaxx<-fread("/Users/dehaay/Desktop/weather_work_data/weatherdata2013-2017.csv")
+aaxx$date <-force_tz(aaxx$date, tzone = "America/New_York")
