@@ -7,9 +7,9 @@ library(data.table)
 library(stringi)
 
 
-df <- fread("/Users/dehaay/Desktop/2a0bb0adc7ef7b8192add6f753a89448.csv")
+df <- fread("/Users/dehaay/Desktop/weather_work_data/2a0bb0adc7ef7b8192add6f753a89448.csv")
 
-zxc <- fread("/Users/dehaay/Desktop/2a0bb0adc7ef7b8192add6f753a89448.csv")
+zxc <- fread("/Users/dehaay/Desktop/weather_work_data/2a0bb0adc7ef7b8192add6f753a89448.csv")
 #dfd <- substr(df$dt_iso,1,19) #removes the "+0000"
 
 a <- as.POSIXct(dfd, format= "%Y-%m-%d %H:%M:%S")
@@ -68,5 +68,12 @@ catgrize <- function(x) {
 cv <- lapply(df$weather_description, function(x) catgrize(x) )
 df$weather_description <- unlist(cv)
 
+zxc<- zxc[-86520,]
+df <- df[-86520,]
+
 
 View(data.frame(df$weather_description, zxc$weather_description))
+
+
+
+fwrite(df,"/Users/dehaay/Desktop/weather_work_data/weatherdata2013-2017.csv", row.names = FALSE)
