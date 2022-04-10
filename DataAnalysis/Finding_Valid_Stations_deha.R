@@ -1,5 +1,7 @@
-#Author: Deha Ay
-#Contributors: Deha Ay
+##Author: Deha Ay
+##Contributors: Deha Ay
+##THIS DATA ONLY PRODUCES THE REPORT OF THE START STATION DATA
+
 
 #install.packages("readxl")
 #install.packages("lubridate")
@@ -24,7 +26,7 @@ for( i in sub_paths) {
   
   data_being_read <- na.omit(fread(i))
   
-  ##Corrects and old formatted data
+  ########Corrects and old formatted data########
   if(colnames(data_being_read)[1] == "tripduration") {
     print("OLD FILE")
     data_being_read <- subset(data_being_read, select = -c(1,15, 14))
@@ -55,15 +57,32 @@ for( i in sub_paths) {
     stop("Unknown Data Type Please Record The File Name, We Might Need To Update The Code")
     
   }
+  ################################################  
+  
+  if (!is.POSIXct(data_being_read$started_at)) {
+    print("The odd date format  fixed")
+    data_being_read$started_at <- lubridate::mdy_hms(data_being_read$started_at)
+    data_being_read$ended_at <- lubridate::mdy_hms(data_being_read$ended_at)
+    data_being_read$ride_id <- as.character(data_being_read$ride_id)
+    data_being_read$start_station_id <- as.character(data_being_read$start_station_id)
+    data_being_read$end_station_id <- as.character(data_being_read$end_station_id)
+  }
   
   data <- rbind(previous, na.omit(data_being_read) )
+  
+  
   previous <- data
   
 }
 ######################Data is Merged at this point in "data"###################
 
 data <- data[order(data$started_at),]
-data <- data[-c(which(data$end_station_name == "")),]
+copy <- data
+
+if (length(which(data$end_station_name == "")) > 0) {
+  data <- data[-c(which(data$end_station_name == "")),]
+}
+
 
 start_to_end_st <- data.frame( start = data$start_station_name, end = data$end_station_name )
 start_frequency_summary <- data.frame(table(start_to_end_st))
@@ -79,32 +98,40 @@ min_hourly_allowed <- 7 #what is the minimum allowed transactions to be consider
 ##A POSSIBLE PROBLEM HERE with Frequency summary, not really, we have to decide 
 #Under what condition we will be considering that station valid, currently 
 
-total_transaction_start_station <- data.frame(tapply(start_frequency_summary$Freq,start_frequency_summary$start,  FUN=sum))
-#total_transaction_start_station$station_name <- rownames(total_transaction_start_station) #formatting the data adding the rownames as column for later call
+total_transaction_start_station <- data.frame(out = tapply(start_frequency_summary$Freq,start_frequency_summary$start,  FUN=sum))
+total_transaction_start_station$station_name <- rownames(total_transaction_start_station) #formatting the data adding the rownames as column for later call
 
-total_transaction_end_station <- data.frame(tapply(end_frequency_summary$Freq,end_frequency_summary$end,  FUN=sum))
-#total_transaction_start_station$station_name <- rownames(total_transaction_start_station)
+total_transaction_end_station <- data.frame(inn = tapply(end_frequency_summary$Freq,end_frequency_summary$end,  FUN=sum))
+total_transaction_end_station$station_name <- rownames(total_transaction_end_station)
 
-###################### Frequency Table is created at this point ###################
-frequency_summary <- start_frequency_summary
+total_transaction_df <- merge(total_transaction_start_station,total_transaction_end_station, by = "station_name")
+View(total_transaction_df)
 
-main_dataset <- data ##Picks the dataset we will be using, separate data set for easier tracking
+total_net_flow_df <- data.frame(station_name = total_transaction_df$station_name,net = (total_transaction_df$inn - total_transaction_df$out))
 
-hour_cutoff_rows <- cumsum(rle(main_dataset$hour_interval)$lengths) #Index numbers for where hour_index change (for dividing the data into chunks)
+daily_average_netflow <- floor(total_net_flow_df$net/(length(sub_paths) * 30.4167)) #Daily estimated net flow 
+##get the data frame 
 
-on_average_hourly_trans <- floor(total_transaction_start_station/(length(sub_paths) * 730.5))
-on_average_hourly_trans$station_name <- rownames(on_average_hourly_trans)
+daily_average_netflow <- data.frame(station_name = total_transaction_df$station_name, daily_net = daily_average_netflow )
 
-valid_stations <- c(on_average_hourly_trans[which(on_average_hourly_trans$tapply.start_frequency_summary.Freq..start_frequency_summary.start.. >= min_hourly_allowed),]$station_name)
-#length(valid_stations)
-
-fwrite(total_transaction_start_station,"/Users/dehaay/Desktop/2022Report/total_transaction_start_station.csv", row.names = TRUE)
-
-fwrite(total_transaction_end_station,"/Users/dehaay/Desktop/2022Report/total_transaction_end_station.csv", row.names = TRUE)
-
-fwrite(on_average_hourly_trans,"/Users/dehaay/Desktop/2022Report/start_on_average_hourly_trans.csv", row.names = TRUE)
-
-fwrite(data.frame(valid_stations),"/Users/dehaay/Desktop/2022Report/valid_stations2.csv", row.names = TRUE)
+top_positive_sorted <-  daily_average_netflow[order(daily_average_netflow$daily_net, decreasing = TRUE),]
+top_negative_sorted <-  daily_average_netflow[order(daily_average_netflow$daily_net, decreasing = FALSE),]
 
 
+positive_flow_stations <- top_positive_sorted[1:7,]$station_name
+negative_flow_stations <- top_negative_sorted[1:7,]$station_name
+
+valid_stations <- unique(c(positive_flow_stations,negative_flow_stations))
+
+fwrite(top_positive_sorted,"/Users/dehaay/Desktop/valid_stations/top_positive_sorted.csv", row.names = TRUE)
+
+fwrite(total_net_flow_df,"/Users/dehaay/Desktop/valid_stations/total_net_flow_df.csv", row.names = TRUE)
+
+fwrite(total_transaction_start_station,"/Users/dehaay/Desktop/valid_stations/total_transaction_start_station.csv", row.names = TRUE)
+
+fwrite(data.frame(valid_stations),"/Users/dehaay/Desktop/valid_stations/valid_stations.csv", row.names = TRUE)
+
+View(total_net_flow_df)
+View(top_positive_sorted)
+View(valid_stations)
 
